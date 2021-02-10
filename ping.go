@@ -94,6 +94,7 @@ func NewPinger(addr string) (*Pinger, error) {
 		network:  "udp",
 		ipv4:     ipv4,
 		size:     timeSliceLength,
+		payload:  nil,
 
 		done: make(chan bool),
 	}, nil
@@ -143,6 +144,7 @@ type Pinger struct {
 	id       int
 	sequence int
 	network  string
+	payload  []byte
 }
 
 type packet struct {
@@ -252,6 +254,11 @@ func (p *Pinger) SetPrivileged(privileged bool) {
 // Privileged returns whether pinger is running in privileged mode.
 func (p *Pinger) Privileged() bool {
 	return p.network == "ip"
+}
+
+// SetAddr sets the payload of the ping pinger will send
+func (p *Pinger) SetPayload(payload []byte) {
+	p.payload = payload
 }
 
 // Run runs the pinger. This is a blocking function that will exit when it's
@@ -476,10 +483,12 @@ func (p *Pinger) sendICMP(conn *icmp.PacketConn) error {
 		dst = &net.UDPAddr{IP: p.ipaddr.IP, Zone: p.ipaddr.Zone}
 	}
 
-	t := timeToBytes(time.Now())
-	if p.size-timeSliceLength != 0 {
-		t = append(t, byteSliceOfSize(p.size-timeSliceLength)...)
+	var t []byte
+	if p.payload != nil {
+		t = p.payload
 	}
+		b := timeToBytes(time.Now())
+		t = append(t, b...)
 	bytes, err := (&icmp.Message{
 		Type: typ, Code: 0,
 		Body: &icmp.Echo{
