@@ -40,7 +40,6 @@
 // callback.
 //
 // For a full ping example, see "cmd/ping/ping.go".
-//
 package ping
 
 import (
@@ -452,7 +451,11 @@ func (p *Pinger) processPacket(recv *packet) error {
 
 	switch pkt := m.Body.(type) {
 	case *icmp.Echo:
-		outPkt.Rtt = time.Since(bytesToTime(pkt.Data[:timeSliceLength]))
+		var tsOffset = timeSliceLength
+		if p.payload != nil {
+			tsOffset = len(p.payload)
+		}
+		outPkt.Rtt = time.Since(bytesToTime(pkt.Data[tsOffset:]))
 		outPkt.Seq = pkt.Seq
 		p.PacketsRecv += 1
 	default:
@@ -487,8 +490,8 @@ func (p *Pinger) sendICMP(conn *icmp.PacketConn) error {
 	if p.payload != nil {
 		t = p.payload
 	}
-		b := timeToBytes(time.Now())
-		t = append(t, b...)
+	b := timeToBytes(time.Now())
+	t = append(t, b...)
 	bytes, err := (&icmp.Message{
 		Type: typ, Code: 0,
 		Body: &icmp.Echo{
